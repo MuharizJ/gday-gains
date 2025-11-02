@@ -1,0 +1,1176 @@
+# Gday-Gains code export (2025-11-02T14:35:04)
+
+=== File: package.json ===
+Content:
+{
+  "name": "gday-gains",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^5.17.4",
+    "@mui/material": "^5.17.4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.126",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/react-router-dom": "^5.3.3",
+    "@types/yup": "^0.29.14",
+    "axios": "^1.13.1",
+    "formik": "^2.4.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-number-format": "^5.4.4",
+    "react-router-dom": "^7.9.5",
+    "react-scripts": "5.0.1",
+    "recharts": "^3.3.0",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4",
+    "yup": "^1.7.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "start:client": "npm start",
+    "start:server": "cd backend && npm run dev",
+    "dev": "concurrently \"npm run start:client\" \"npm run start:server\""
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "nodemon": "^3.1.10"
+  }
+}
+
+=== End of package.json ===
+
+=== File: tsconfig.json ===
+Content:
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src"
+, "backend/src/model", "backend/src/routes"  ]
+}
+
+=== End of tsconfig.json ===
+
+=== File: src/App.tsx ===
+Content:
+import { ThemeProvider } from '@mui/material/styles';
+import { CssBaseline, AppBar, Toolbar, Typography, Box, Container } from '@mui/material';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import theme from './theme';
+import InputsPage from './pages/InputsPage';
+import ResultsPage from './pages/ResultsPage';
+
+export default function App() {
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <AppBar position="sticky" color="default" elevation={0} sx={{ borderBottom: '1px solid #eee' }}>
+          <Toolbar>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Gday-Gains</Typography>
+            <Box sx={{ flex: 1 }} />
+            {/* (Show Me stays inside the form on Inputs) */}
+          </Toolbar>
+        </AppBar>
+
+        <Container maxWidth="lg" sx={{ py: 3 }}>
+          <Routes>
+            <Route path="/" element={<InputsPage />} />
+            <Route path="/results" element={<ResultsPage />} />
+          </Routes>
+        </Container>
+      </Router>
+    </ThemeProvider>
+  );
+}
+
+=== End of src/App.tsx ===
+
+=== File: src/components/ExpensesTab.tsx ===
+Content:
+import React from 'react';
+import Grid from '@mui/material/Grid';
+import FormSection from './ui/FormSection';
+import FTextField from './ui/FTextField';
+import FCurrencyField from './ui/FCurrencyField';
+
+export default function ExpensesTab() {
+  return (
+    <FormSection title="Retirement Distributions">
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={4}>
+          <FCurrencyField name="livingExpenses" label="Retirement Living Expenses ($/mo)" />
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <FTextField name="inflation" label="Inflation (%/yr)" type="number" />
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <FCurrencyField name="floorWithdrawal" label="Floor Withdrawal ($/mo)" />
+        </Grid>
+      </Grid>
+    </FormSection>
+  );
+}
+
+=== End of src/components/ExpensesTab.tsx ===
+
+=== File: src/components/PersistToLocalStorage.tsx ===
+Content:
+import { useEffect } from 'react';
+import { useFormikContext } from 'formik';
+import type { Inputs } from '../types';
+import { saveForm } from '../utils/persist';
+
+
+export default function PersistToLocalStorage() {
+  const { values } = useFormikContext<Inputs>();
+  useEffect(() => {
+    saveForm(values);
+  }, [values]);
+  return null;
+}
+
+=== End of src/components/PersistToLocalStorage.tsx ===
+
+=== File: src/components/PersonalTab.tsx ===
+Content:
+import React from 'react';
+import Grid from '@mui/material/Grid';
+import { ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { useField, useFormikContext } from 'formik';
+import FormSection from './ui/FormSection';
+import FTextField from './ui/FTextField';
+import FSlider from './ui/FSlider';
+
+function RetiredToggle() {
+  const { setFieldValue } = useFormikContext<any>();
+  const [field] = useField('retired');
+  return (
+    <ToggleButtonGroup
+      value={field.value}
+      exclusive
+      onChange={(_, v) => v && setFieldValue('retired', v)}
+      size="small"
+    >
+      <ToggleButton value="retired">I’m Retired</ToggleButton>
+      <ToggleButton value="notRetired">I’m Not Retired</ToggleButton>
+    </ToggleButtonGroup>
+  );
+}
+
+export default function PersonalTab() {
+  return (
+    <>
+      <FormSection title="Basics">
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}><FTextField name="firstName" label="First Name" /></Grid>
+          <Grid item xs={12} md={6}><FTextField name="birthdate" label="Birthdate" type="date" /></Grid>
+          <Grid item xs={12} md={4}><FTextField name="retirementAge" label="Retirement Age" type="number" /></Grid>
+          <Grid item xs={12} md={8}><FSlider name="lifeExpectancy" label="Life Expectancy" min={60} max={110} /></Grid>
+        </Grid>
+      </FormSection>
+
+      <FormSection title="Status">
+        <RetiredToggle />
+      </FormSection>
+    </>
+  );
+}
+
+=== End of src/components/PersonalTab.tsx ===
+
+=== File: src/components/PortfolioTab.tsx ===
+Content:
+import React from 'react';
+import Grid from '@mui/material/Grid';
+import { FieldArray } from 'formik';
+import { IconButton, Button, Tooltip } from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AddIcon from '@mui/icons-material/Add';
+
+import FormSection from './ui/FormSection';
+import FTextField from './ui/FTextField';
+import FCurrencyField from './ui/FCurrencyField';
+
+export default function PortfolioTab() {
+  return (
+    <>
+      {/* Row 1: Core portfolio */}
+      <FormSection title="Balances & Contributions">
+        <Grid container spacing={2}>
+          {/* --- Primary portfolio row --- */}
+          <Grid item xs={12} md={4}>
+            <FCurrencyField name="portfolioBalance" label="Portfolio Balance ($)" />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <FCurrencyField name="monthlyContribution" label="Contribution ($/mo)" />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <FTextField name="contributionGrowth" label="Contribution Growth (%/yr)" type="number" />
+          </Grid>
+
+          {/* --- Super row --- */}
+          <Grid item xs={12} md={4}>
+            <FCurrencyField name="superBalance" label="Super Balance ($)" />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <FCurrencyField name="monthlySuperContribution" label="Monthly Super Contribution ($/mo)" />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <FTextField name="superGrowth" label="Super Growth (%/yr)" type="number" />
+          </Grid>
+        </Grid>
+      </FormSection>
+
+      {/* Allocation stays as-is */}
+      <FormSection title="Asset Allocation">
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <FTextField name="stocksPct" label="Stocks (%)" type="number" />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FTextField name="fundsPct" label="ETFs & Managed Funds (%)" type="number" />
+          </Grid>
+        </Grid>
+      </FormSection>
+
+      {/* New: Irregular/Special contributions */}
+      <FormSection title="Irregular Contributions">
+        <FieldArray name="specialContributions">
+          {({ push, remove, form }) => (
+            <>
+              {form.values.specialContributions?.map((_: any, idx: number) => (
+                <Grid container spacing={2} alignItems="center" key={idx} sx={{ mb: 0.5 }}>
+                  <Grid item xs={12} md={3}>
+                    <FTextField name={`specialContributions.${idx}.age`} label="Age at contribution" type="number" />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FCurrencyField name={`specialContributions.${idx}.amount`} label="Amount ($)" />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FTextField name={`specialContributions.${idx}.description`} label="Description (optional)" />
+                  </Grid>
+                  <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Tooltip title="Remove">
+                      <IconButton color="inherit" onClick={() => remove(idx)}>
+                        <DeleteOutlineIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Grid>
+                </Grid>
+              ))}
+
+              <Button
+                startIcon={<AddIcon />}
+                onClick={() => push({ age: undefined, amount: undefined, description: '' })}
+                sx={{ mt: 1 }}
+              >
+                Add contribution
+              </Button>
+            </>
+          )}
+        </FieldArray>
+      </FormSection>
+    </>
+  );
+}
+
+=== End of src/components/PortfolioTab.tsx ===
+
+=== File: src/components/SettingsTab.tsx ===
+Content:
+import React from 'react';
+import Grid from '@mui/material/Grid';
+import { Box } from '@mui/material';
+import FormSection from './ui/FormSection';
+import FTextField from './ui/FTextField';
+import FCheckbox from './ui/FCheckbox';
+import FSlider from './ui/FSlider';
+
+export default function SettingsTab() {
+  return (
+    <>
+      <FormSection title="Portfolio Assumptions">
+        <Grid container spacing={2}>
+          <Grid xs={12} md={3}><FTextField name="portfolioExpectedReturn" label="Expected Return (%)" type="number" /></Grid>
+          <Grid xs={12} md={3}><FTextField name="portfolioSD" label="Std Dev (%)" type="number" /></Grid>
+          <Grid xs={12} md={3}><FTextField name="correlation" label="Correlation" type="number" /></Grid>
+          <Grid xs={12} md={3}><FTextField name="portfolioRecalibrationPercent" label="Post-Ret Haircut (%)" type="number" /></Grid>
+          <Grid xs={12} md={3}><FTextField name="portfolioRecalibrationAge" label="Haircut Age" type="number" /></Grid>
+        </Grid>
+      </FormSection>
+
+      <FormSection title="Super Assumptions">
+        <Grid container spacing={2}>
+          <Grid xs={12} md={3}><FTextField name="superBlendedReturn" label="Super Return (%)" type="number" /></Grid>
+          <Grid xs={12} md={3}><FTextField name="superRecalibrationPercent" label="Post-Ret Haircut (%)" type="number" /></Grid>
+          <Grid xs={12} md={3}><FTextField name="superRecalibrationAge" label="Haircut Age" type="number" /></Grid>
+        </Grid>
+      </FormSection>
+
+      <FormSection title="Volatility Features">
+        <Grid container spacing={2}>
+          <Grid xs={12}>
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              <FCheckbox name="removeVolatility" label="Remove Volatility" />
+              <FCheckbox name="includeFatTails" label="Include Fat Tails (placeholder)" />
+            </Box>
+          </Grid>
+          <Grid xs={12} md={4}><FSlider name="fatTailMagnitude" label="FT Magnitude" min={1} max={2} step={1} /></Grid>
+          <Grid xs={12} md={4}><FSlider name="fatTailFrequency" label="FT Frequency" min={1} max={2} step={1} /></Grid>
+          <Grid xs={12} md={4}><FSlider name="fatTailSkew" label="FT Skew" min={-1} max={1} step={1} /></Grid>
+        </Grid>
+      </FormSection>
+
+      <FormSection title="Black Swan">
+        <Grid container spacing={2}>
+          <Grid xs={12} md={3}><FTextField name="blackSwanAge" label="Age" type="number" /></Grid>
+          <Grid xs={12} md={3}><FTextField name="blackSwanDropPct" label="Drop (%)" type="number" /></Grid>
+        </Grid>
+      </FormSection>
+    </>
+  );
+}
+
+=== End of src/components/SettingsTab.tsx ===
+
+=== File: src/components/ui/FCheckbox.tsx ===
+Content:
+import { useField } from 'formik';
+import { Checkbox, FormControlLabel } from '@mui/material';
+
+export default function FCheckbox({ name, label }: { name: string; label: string }) {
+  const [field] = useField({ name, type: 'checkbox' });
+  return <FormControlLabel control={<Checkbox {...field} checked={Boolean(field.value)} />} label={label} />;
+}
+
+=== End of src/components/ui/FCheckbox.tsx ===
+
+=== File: src/components/ui/FCurrencyField.tsx ===
+Content:
+import { useField, useFormikContext } from 'formik';
+import TextField from '@mui/material/TextField';
+import { NumericFormat } from 'react-number-format';
+
+type Props = {
+  name: string;
+  label: string;
+  allowDecimals?: boolean;       // default false (no cents)
+};
+
+export default function FCurrencyField({ name, label, allowDecimals = false }: Props) {
+  const { setFieldValue } = useFormikContext<any>();
+  const [field, meta] = useField(name);
+  const error = meta.touched && Boolean(meta.error);
+
+  return (
+    <NumericFormat
+      customInput={TextField}
+      value={field.value ?? ''}
+      name={name}
+      label={label}
+      thousandSeparator
+      decimalScale={allowDecimals ? 2 : 0}
+      fixedDecimalScale={allowDecimals}
+      allowNegative={false}
+      fullWidth
+      size="small"
+      error={error}
+      helperText={error ? meta.error : ' '}
+      inputProps={{ inputMode: 'numeric' }}
+      onValueChange={(vals) => setFieldValue(name, vals.floatValue ?? 0)}
+      onBlur={field.onBlur}
+    />
+  );
+}
+
+=== End of src/components/ui/FCurrencyField.tsx ===
+
+=== File: src/components/ui/FormSection.tsx ===
+Content:
+import { Card, CardHeader, CardContent } from '@mui/material';
+export default function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Card sx={{ mb: 3 }}>
+      <CardHeader title={title} sx={{ pb: 0 }} />
+      <CardContent sx={{ pt: 2 }}>{children}</CardContent>
+    </Card>
+  );
+}
+
+=== End of src/components/ui/FormSection.tsx ===
+
+=== File: src/components/ui/FSlider.tsx ===
+Content:
+import { useField, useFormikContext } from 'formik';
+import { Slider, Stack, Typography } from '@mui/material';
+
+export default function FSlider({
+  name, label, min, max, step,
+}: { name: string; label: string; min: number; max: number; step?: number }) {
+  const { setFieldValue } = useFormikContext<any>();
+  const [field] = useField<number>(name);
+  return (
+    <Stack spacing={1} sx={{ px: 1 }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}: <b>{field.value}</b>
+      </Typography>
+      <Slider value={Number(field.value || 0)} min={min} max={max} step={step}
+              onChange={(_, v) => setFieldValue(name, v)} />
+    </Stack>
+  );
+}
+
+=== End of src/components/ui/FSlider.tsx ===
+
+=== File: src/components/ui/FTextField.tsx ===
+Content:
+import { useField } from 'formik';
+import TextField from '@mui/material/TextField';
+
+type Props = { name: string; label: string; type?: string; placeholder?: string; };
+export default function FTextField(props: Props) {
+  const [field, meta] = useField(props.name);
+  const error = meta.touched && Boolean(meta.error);
+  return <TextField {...field} {...props} error={error} helperText={error ? meta.error : ' '} />;
+}
+
+=== End of src/components/ui/FTextField.tsx ===
+
+=== File: src/formSchema.ts ===
+Content:
+// formSchema.ts
+import * as Yup from 'yup';
+import { Inputs } from './types';
+
+export const initialValues: Inputs = {
+  // Personal
+  firstName: '', birthdate: '', retired: 'notRetired',
+  retirementAge: 60, lifeExpectancy: 90,
+
+  // Portfolio
+  portfolioBalance: 500000, stocksPct: 70, fundsPct: 30,
+  superBalance: 250000, monthlyContribution: 7000, contributionGrowth: 0,
+  monthlySuperContribution: 0, superGrowth: 0,
+
+  // NEW – dynamic rows
+  specialContributions: [],
+
+  // Expenses
+  livingExpenses: 12000, inflation: 3, floorWithdrawal: 6000,
+  taxablePortion: 100, effectiveTaxRate: 0, specialWithdrawals: [],
+
+  // Settings
+  portfolioExpectedReturn: 8, portfolioSD: 15, correlation: 0,
+  portfolioRecalibrationPercent: 2, portfolioRecalibrationAge: 60,
+
+  superBlendedReturn: 8, superRecalibrationPercent: 0, superRecalibrationAge: 60,
+
+  removeVolatility: false, includeFatTails: false,
+  fatTailMagnitude: 1, fatTailFrequency: 1, fatTailSkew: 0,
+
+  blackSwanAge: 65, blackSwanDropPct: 30,
+};
+
+export const validationSchema = Yup.object({
+  // ...your existing rules...
+
+  // 👇 NEW: Irregular contributions validation
+  specialContributions: Yup.array()
+    // Optional: ignore completely empty rows (no age, no amount, no description)
+    .compact((row: any) =>
+      !row || (row.age === undefined && row.amount === undefined && !row.description)
+    )
+    .of(
+      Yup.object({
+        age: Yup.number()
+          .transform((v, orig) => (orig === '' ? undefined : v)) // handle empty string from inputs
+          .typeError('Enter an age')
+          .integer('Age must be a whole number')
+          .min(0, 'Age must be ≥ 0')
+          .max(120, 'Age looks too high')
+          .required('Age required'),
+        amount: Yup.number()
+          .transform((v, orig) => (orig === '' ? undefined : v))
+          .typeError('Enter an amount')
+          .min(1, 'Amount must be > 0')
+          .required('Amount required'),
+        description: Yup.string().max(120, 'Keep under 120 chars'),
+      })
+    ),
+});
+
+=== End of src/formSchema.ts ===
+
+=== File: src/index.tsx ===
+Content:
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import App from './App';
+import reportWebVitals from './reportWebVitals';
+
+const root = ReactDOM.createRoot(
+  document.getElementById('root') as HTMLElement
+);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+reportWebVitals();
+
+=== End of src/index.tsx ===
+
+=== File: src/pages/InputsPage.tsx ===
+Content:
+import React, { useState } from 'react';
+import { Tabs, Tab, Box, Button, CircularProgress, Paper } from '@mui/material';
+import { Formik, Form } from 'formik';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+
+import PersonalTab from '../components/PersonalTab';
+import PortfolioTab from '../components/PortfolioTab';
+import ExpensesTab from '../components/ExpensesTab';
+import SettingsTab from '../components/SettingsTab';
+
+import { initialValues, validationSchema } from '../formSchema';
+import { saveForm, loadForm } from '../utils/persist';
+import type { Inputs } from '../types';
+import PersistToLocalStorage from '../components/PersistToLocalStorage';
+
+import { MOCK_RESULTS } from '../utils/mockResults';
+
+
+export default function InputsPage() {
+  const [tabValue, setTabValue] = useState(0);
+  const [pending, setPending] = useState(false);
+  const navigate = useNavigate();
+  const API = process.env.REACT_APP_API_URL ?? 'http://localhost:5001';
+
+  const saved = loadForm();
+  const seed: Inputs = { ...initialValues, ...(saved || {}) };
+
+  return (
+    <Formik<Inputs>
+      initialValues={seed}
+      validationSchema={validationSchema}
+      onSubmit={async (values) => {
+        setPending(true);
+        try {
+          const res = await axios.post(`${API}/api/simulate`, values);
+          navigate('/results', { state: { results: res.data, inputs: values } });
+        } catch {
+          alert('Simulation failed');
+        } finally { setPending(false); }
+      }}
+    >
+      {() => (
+        <Form>
+          <PersistToLocalStorage />
+
+          <Paper elevation={0} sx={{ mb: 2, p: 1.5, borderRadius: 2, border: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 2, position: 'sticky', top: 16, zIndex: 1 }}>
+            <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ flex: 1 }}>
+              <Tab label="Personal" />
+              <Tab label="Portfolio" />
+              <Tab label="Expenses" />
+              <Tab label="Settings" />
+            </Tabs>
+            <Button type="submit" disabled={pending} startIcon={pending ? <CircularProgress size={16} /> : null}>
+              {pending ? 'Running…' : 'Show Me'}
+            </Button>
+          </Paper>
+
+          <Box>{tabValue === 0 && <PersonalTab />}</Box>
+          <Box>{tabValue === 1 && <PortfolioTab />}</Box>
+          <Box>{tabValue === 2 && <ExpensesTab />}</Box>
+          <Box>{tabValue === 3 && <SettingsTab />}</Box>
+        </Form>
+      )}
+    </Formik>
+  );
+}
+
+=== End of src/pages/InputsPage.tsx ===
+
+=== File: src/pages/ResultsPage.tsx ===
+Content:
+import * as React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Box, Button, Card, CardContent, Chip, Grid, Typography,
+  Tabs, Tab, Table, TableHead, TableRow, TableCell, TableBody, Divider
+} from '@mui/material';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import {
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend, ReferenceDot
+} from 'recharts';
+import type { Inputs } from '../types';
+
+type GraphPoint = { age: number; p20: number; p50: number; p80: number };
+type PolicyEvent = { age: number; type: 'black-swan' | 'cut' | 'floor' };
+type AdviceRow = {
+  age: number;
+  policy: 'normal' | 'cut' | 'floor';
+  targetSpend: number;   // yearly; UI shows monthly
+  actualSpend: number;   // yearly; UI shows monthly
+  endBalance: number;
+};
+
+type Results = {
+  graph: GraphPoint[];
+  atEnd: { p20: number; p50: number; p80: number; endAge: number };
+  breakdown: { age: number; ret20: number; ret50: number; ret80: number; bal20: number; bal50: number; bal80: number; }[];
+  events?: PolicyEvent[];
+  advice?: AdviceRow[]; // legacy single track
+  adviceByPath?: { p20: AdviceRow[]; p50: AdviceRow[]; p80: AdviceRow[] }; // new
+};
+
+const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString()}`;
+const monthly = (yr: number) => yr / 12;
+
+function clampAge(data: GraphPoint[], a: number) {
+  if (!data.length) return a;
+  return Math.min(Math.max(a, data[0].age), data[data.length - 1].age);
+}
+function getAtAge(data: GraphPoint[], targetAge: number): GraphPoint {
+  if (!data.length) return { age: targetAge, p20: 0, p50: 0, p80: 0 };
+  const t = clampAge(data, targetAge);
+  let best = data[0];
+  for (const pt of data) {
+    if (pt.age <= t) best = pt;
+    if (pt.age === t) return pt;
+  }
+  return best;
+}
+function sliceByAges(data: GraphPoint[], fromAge: number, toAge: number) {
+  const lo = Math.min(fromAge, toAge);
+  const hi = Math.max(fromAge, toAge);
+  return data.filter(d => d.age >= lo && d.age <= hi);
+}
+
+const evStyle = (t: PolicyEvent['type']) =>
+  t === 'black-swan'
+    ? { stroke: '#ef5350', fill: '#ef5350', label: 'Shock' }
+    : t === 'floor'
+      ? { stroke: '#6d4c41', fill: '#6d4c41', label: 'Floor' }
+      : { stroke: '#ffa000', fill: '#ffa000', label: 'Cut' };
+
+function Section({ title, data, cardAge, idPrefix, markers = [] }: {
+  title: string; data: GraphPoint[]; cardAge: number; idPrefix: string; markers?: PolicyEvent[];
+}) {
+  if (!data.length) return null;
+  const at = getAtAge(data, cardAge);
+  const minY = Math.min(...data.map(d => Math.min(d.p20, d.p50, d.p80)));
+  return (
+    <Box sx={{ mb: 5 }}>
+      <Typography variant="h5" sx={{ mb: 2 }}>{title}</Typography>
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ height: 380 }}>
+          <ResponsiveContainer>
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient id={`${idPrefix}-g20`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef5350" stopOpacity={0.5} />
+                  <stop offset="95%" stopColor="#ef5350" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id={`${idPrefix}-g50`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#42a5f5" stopOpacity={0.5} />
+                  <stop offset="95%" stopColor="#42a5f5" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id={`${idPrefix}-g80`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#66bb6a" stopOpacity={0.5} />
+                  <stop offset="95%" stopColor="#66bb6a" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+
+              <XAxis dataKey="age" />
+              <YAxis tickFormatter={(v) => `$${(v / 1e6).toFixed(1)}m`} />
+              <Tooltip formatter={(v: any) => fmtMoney(Number(v) || 0)} />
+              <Legend />
+
+              <Area dataKey="p20" name="Unlucky (20th)" type="monotone" stroke="#ef5350" fill={`url(#${idPrefix}-g20)`} />
+              <Area dataKey="p50" name="Median (50th)"  type="monotone" stroke="#42a5f5" fill={`url(#${idPrefix}-g50)`} />
+              <Area dataKey="p80" name="Lucky (80th)"   type="monotone" stroke="#66bb6a" fill={`url(#${idPrefix}-g80)`} />
+
+              {markers.map((e, i) => {
+                const s = evStyle(e.type);
+                return (
+                  <ReferenceDot
+                    key={`${idPrefix}-${e.type}-${e.age}-${i}`}
+                    x={e.age}
+                    y={minY}
+                    r={5}
+                    stroke={s.stroke}
+                    fill={s.fill}
+                    ifOverflow="extendDomain"
+                    label={{ value: s.label, position: 'top' }}
+                  />
+                );
+              })}
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <Grid container spacing={2}>
+        {(['p20', 'p50', 'p80'] as const).map(k => (
+          <Grid item xs={12} md={4} key={k}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Chip size="small" label={k === 'p20' ? '20th' : k === 'p50' ? '50th' : '80th'}
+                        color={k === 'p20' ? 'error' : k === 'p50' ? 'primary' : 'success'} />
+                  <Typography variant="subtitle2">
+                    {k === 'p20' ? 'Unlucky' : k === 'p50' ? 'Median' : 'Lucky'}
+                  </Typography>
+                </Box>
+                <Typography variant="h5">{fmtMoney((at as any)[k] ?? 0)}</Typography>
+                <Typography variant="body2" color="text.secondary">at age {at.age}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  );
+}
+
+function AdviceTabs({ tracks, retireAge }: {
+  tracks?: { p20: AdviceRow[]; p50: AdviceRow[]; p80: AdviceRow[] };
+  retireAge: number;
+}) {
+  // harden against undefined
+  const safeTracks = tracks ?? { p20: [], p50: [], p80: [] };
+  const [tab, setTab] = React.useState<'p20' | 'p50' | 'p80'>('p20');
+  const rows = tab === 'p50' ? safeTracks.p50 : tab === 'p80' ? safeTracks.p80 : safeTracks.p20;
+
+  return (
+    <Box sx={{ mt: 4 }}>
+      <Typography variant="h6" sx={{ mb: 1 }}>Advice & Timeline</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <strong>Shock</strong> = black-swan drop. <strong>Cut</strong> = guardrail cut. <strong>Floor</strong> = spending clamped to your floor.
+      </Typography>
+
+      <Card>
+        <CardContent>
+          <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+            <Tab label="Unlucky (p20)" value="p20" />
+            <Tab label="Median (p50)"  value="p50" />
+            <Tab label="Lucky (p80)"   value="p80" />
+          </Tabs>
+
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Age</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Target ($/mo)</TableCell>
+                <TableCell align="right">Actual ($/mo)</TableCell>
+                <TableCell align="right">Balance</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map(r => {
+                const isRetired = r.age >= retireAge;
+                const icon =
+                  r.policy === 'floor' ? <FiberManualRecordIcon sx={{ fontSize: 10, color: "#f83d04ff" , ml: 0.5 }} /> :
+                  r.policy === 'cut'   ? <FiberManualRecordIcon sx={{ fontSize: 10, color: "#f8bf05ff", ml: 0.5 }} /> :
+                  null;
+
+                return (
+                  <TableRow key={`${tab}-${r.age}`}>
+                    <TableCell>{r.age}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={isRetired ? 'Retired' : 'Normal'}
+                        color={isRetired ? 'warning' : 'success'}
+                      />
+                    </TableCell>
+                    <TableCell align="right">{fmtMoney(monthly(r.targetSpend))}</TableCell>
+                    <TableCell align="right">
+                      {fmtMoney(monthly(r.actualSpend))}
+                      {icon}
+                    </TableCell>
+                    <TableCell align="right">{fmtMoney(r.endBalance)}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+
+export default function ResultsPage() {
+  const nav = useNavigate();
+  const { state } = useLocation() as { state?: { results?: Results; inputs?: Inputs } };
+  const results = state?.results;
+  const inputs  = state?.inputs;
+
+  // ✅ Always call hooks (no early-returns above this)
+  const adviceTracks = React.useMemo((): { p20: AdviceRow[]; p50: AdviceRow[]; p80: AdviceRow[] } => {
+    if (results?.adviceByPath && results.adviceByPath.p20 && results.adviceByPath.p50 && results.adviceByPath.p80) {
+      return results.adviceByPath;
+    }
+    if (results?.advice) {
+      // legacy single-track payload; mirror it across the three tabs
+      return { p20: results.advice, p50: results.advice, p80: results.advice };
+    }
+    // safe default so the table renders empty without crashing
+    return { p20: [], p50: [], p80: [] };
+  }, [results]);
+
+  // ❗ early return is fine here (after all hooks are declared)
+  if (!results || !inputs || !results.graph?.length) {
+    return (
+      <Box p={3}>
+        <Typography>No results found. Go back and run a simulation.</Typography>
+        <Box sx={{ mt: 2 }}>
+          <Button variant="outlined" onClick={() => nav(-1)}>Back</Button>
+        </Box>
+      </Box>
+    );
+  }
+
+  const startAge = results.graph[0].age;
+  const retireAge = Math.max(startAge, Math.round(inputs.retirementAge));
+  const lifeAge   = Math.max(retireAge, Math.round(inputs.lifeExpectancy));
+
+  const preData  = sliceByAges(results.graph, startAge, retireAge);
+  const postData = sliceByAges(results.graph, retireAge, lifeAge);
+
+  const preMarkers  = (results.events ?? []).filter(e => e.age <  retireAge);
+  const postMarkers = (results.events ?? []).filter(e => e.age >= retireAge);
+
+  return (
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
+
+      <Box sx={{ mt: 1, mb:3 }}>
+        <Button variant="outlined" onClick={() => nav(-1)}>Edit</Button>
+      </Box>
+
+      <Section
+        title="We ran 10,000 simulations based on your information."
+        data={preData}
+        cardAge={retireAge}
+        idPrefix="pre"
+        markers={preMarkers}
+      />
+
+      <Section
+        title="From retirement to life expectancy"
+        data={postData}
+        cardAge={lifeAge}
+        idPrefix="post"
+        markers={postMarkers}
+      />
+
+      <Divider sx={{ my: 4 }} />
+      <AdviceTabs tracks={adviceTracks} retireAge={retireAge} />
+
+      <Box sx={{ mt: 3 }}>
+        <Button variant="outlined" onClick={() => nav(-1)}>Edit</Button>
+      </Box>
+    </Box>
+  );
+}
+
+=== End of src/pages/ResultsPage.tsx ===
+
+=== File: src/react-app-env.d.ts ===
+Content:
+/// <reference types="react-scripts" />
+
+=== End of src/react-app-env.d.ts ===
+
+=== File: src/reportWebVitals.ts ===
+Content:
+import { ReportHandler } from 'web-vitals';
+
+const reportWebVitals = (onPerfEntry?: ReportHandler) => {
+  if (onPerfEntry && onPerfEntry instanceof Function) {
+    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+      getCLS(onPerfEntry);
+      getFID(onPerfEntry);
+      getFCP(onPerfEntry);
+      getLCP(onPerfEntry);
+      getTTFB(onPerfEntry);
+    });
+  }
+};
+
+export default reportWebVitals;
+
+=== End of src/reportWebVitals.ts ===
+
+=== File: src/setupTests.ts ===
+Content:
+// jest-dom adds custom jest matchers for asserting on DOM nodes.
+// allows you to do things like:
+// expect(element).toHaveTextContent(/react/i)
+// learn more: https://github.com/testing-library/jest-dom
+import '@testing-library/jest-dom';
+
+=== End of src/setupTests.ts ===
+
+=== File: src/theme.ts ===
+Content:
+import { createTheme } from '@mui/material/styles';
+
+const theme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: { main: '#1e88e5' },
+    secondary: { main: '#00bfa5' },
+    background: { default: '#f7f8fb', paper: '#ffffff' },
+  },
+  shape: { borderRadius: 12 },
+  typography: {
+    fontFamily: '"Inter", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial',
+    h5: { fontWeight: 600 },
+    h6: { fontWeight: 600 },
+  },
+  components: {
+    MuiButton: {
+      defaultProps: { variant: 'contained' },
+      styleOverrides: { root: { borderRadius: 12, textTransform: 'none' } },
+    },
+    MuiTextField: {
+      defaultProps: { size: 'small', fullWidth: true, variant: 'outlined' },
+    },
+    MuiCard: {
+      styleOverrides: { root: { borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' } },
+    },
+    MuiTabs: { styleOverrides: { indicator: { height: 3, borderRadius: 3 } } },
+    MuiTab:  { styleOverrides: { root: { textTransform: 'none', fontWeight: 600 } } },
+  },
+});
+
+export default theme;
+
+=== End of src/theme.ts ===
+
+=== File: src/types.ts ===
+Content:
+export type SpecialRow = { age: number; amount: number; description?: string };
+
+export type Inputs = {
+  // Personal
+  firstName: string;
+  birthdate: string;       // yyyy-mm-dd
+  retired: 'retired' | 'notRetired';
+  retirementAge: number;
+  lifeExpectancy: number;
+
+  // Portfolio
+  portfolioBalance: number;
+  stocksPct: number;
+  fundsPct: number;        // must sum to 100 with stocksPct
+  superBalance: number;
+  monthlyContribution: number;
+  contributionGrowth: number;           // %/yr
+  monthlySuperContribution: number;
+  superGrowth: number;                  // %/yr
+  specialContributions: SpecialRow[];
+
+  // Expenses
+  livingExpenses: number;  // $/mo
+  inflation: number;       // %/yr
+  floorWithdrawal: number; // $/mo
+  taxablePortion: number;  // %
+  effectiveTaxRate: number;// %
+  specialWithdrawals: SpecialRow[];
+
+  // Settings
+  portfolioExpectedReturn: number; // %/yr
+  portfolioSD: number;             // %/yr
+  correlation: number;             // keep but unused for now
+  portfolioRecalibrationPercent: number; // post-ret haircut %
+  portfolioRecalibrationAge: number;
+
+  superBlendedReturn: number; // %/yr
+  superRecalibrationPercent: number;
+  superRecalibrationAge: number;
+
+  removeVolatility: boolean;
+  includeFatTails: boolean;   // (placeholder)
+  fatTailMagnitude: number;   // 1|2
+  fatTailFrequency: number;   // 1|2
+  fatTailSkew: number;        // -1|0|1
+
+  blackSwanAge: number;       // age at shock
+  blackSwanDropPct: number;   // drop %
+};
+
+=== End of src/types.ts ===
+
+=== File: src/utils/mockResults.ts ===
+Content:
+export const MOCK_RESULTS = {
+  graph: Array.from({ length: 46 }, (_, i) => {
+    const age = 45 + i;
+    const base = 750000 * Math.pow(1.08, i);
+    return { age, p20: Math.round(base * 0.6), p50: Math.round(base), p80: Math.round(base * 1.6) };
+  }),
+  atEnd: { p20: 0, p50: 0, p80: 0, endAge: 90 },
+  breakdown: []
+};
+// compute atEnd/breakdown
+(() => {
+  const last = (MOCK_RESULTS.graph as any[])[(MOCK_RESULTS.graph as any[]).length - 1];
+  (MOCK_RESULTS as any).atEnd = { p20: last.p20, p50: last.p50, p80: last.p80, endAge: last.age };
+  const startBal = 750000, startAge = 45;
+  const ages = [65, 70, 75, 80, 85];
+  (MOCK_RESULTS as any).breakdown = ages.map((a) => {
+    const row = (MOCK_RESULTS.graph as any[])[a - startAge];
+    const yrs = Math.max(1, a - startAge);
+    const imp = (x: number) => (Math.pow(x / Math.max(1, startBal), 1 / yrs) - 1) * 100;
+    return { age: a, ret20: +imp(row.p20).toFixed(2), ret50: +imp(row.p50).toFixed(2), ret80: +imp(row.p80).toFixed(2),
+      bal20: row.p20, bal50: row.p50, bal80: row.p80 };
+  });
+})();
+
+=== End of src/utils/mockResults.ts ===
+
+=== File: src/utils/persist.ts ===
+Content:
+import { Inputs } from '../types';
+const KEY = 'gday-gains-form';
+
+export const loadForm = (): Partial<Inputs> | null => {
+  try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; }
+};
+export const saveForm = (vals: Inputs) => {
+  try { localStorage.setItem(KEY, JSON.stringify(vals)); } catch {}
+};
+
+=== End of src/utils/persist.ts ===
+
+=== File: backend/package.json ===
+Content:
+{
+  "scripts": {
+    "test:engine": "tsx src/scripts/runTests.ts",
+    "dev": "tsx watch src/index.ts",
+    "scenario:det": "tsx src/scripts/runScenario.ts src/scenarios/sample.json",
+    "scenario:mc": "node -e \"console.log('Use scenario:det for table; MC runs via API or runScenario.ts already prints end percentiles.')\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3"
+  }
+}
+
+=== End of backend/package.json ===
+
+=== File: backend/tsconfig.json ===
+Content:
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}
+=== End of backend/tsconfig.json ===
+
+=== File: backend/mockResults.js ===
+Content:
+// backend/mockResults.js
+function buildMock({ startAge = 45, endAge = 90, startBal = 750000, mu = 0.08 } = {}) {
+  const graph = [];
+  for (let age = startAge; age <= endAge; age++) {
+    const t = age - startAge;
+    const median = startBal * Math.pow(1 + mu, t);
+    const p20 = median * 0.6;
+    const p80 = median * 1.6;
+    graph.push({ age, p20: Math.round(p20), p50: Math.round(median), p80: Math.round(p80) });
+  }
+  const last = graph[graph.length - 1];
+  const ages = [65, 70, 75, 80, 85].filter(a => a >= startAge && a <= endAge);
+  const breakdown = ages.map(a => {
+    const row = graph[a - startAge];
+    const yrs = Math.max(1, a - startAge);
+    const imp = x => (Math.pow(x / Math.max(1, startBal), 1 / yrs) - 1) * 100;
+    return {
+      age: a,
+      ret20: +imp(row.p20).toFixed(2),
+      ret50: +imp(row.p50).toFixed(2),
+      ret80: +imp(row.p80).toFixed(2),
+      bal20: row.p20, bal50: row.p50, bal80: row.p80
+    };
+  });
+  return { graph, atEnd: { p20: last.p20, p50: last.p50, p80: last.p80, endAge }, breakdown };
+}
+module.exports = { buildMock };
+
+=== End of backend/mockResults.js ===

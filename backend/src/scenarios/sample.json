@@ -1,0 +1,46 @@
+{
+  "firstName": "Riz",
+  "birthdate": "1981-08-18",
+  "retired": "notRetired",
+  "retirementAge": 55,
+  "lifeExpectancy": 75,
+
+  "portfolioBalance": 500000,
+  "stocksPct": 100,
+  "fundsPct": 0,
+  "monthlyContribution": 7000,
+  "contributionGrowth": 3,
+
+  "superBalance": 350000,
+  "monthlySuperContribution": 4000,
+  "superGrowth": 3,
+
+  "livingExpenses": 35000,
+  "inflation": 3,
+  "floorWithdrawal": 10000,
+
+  "portfolioExpectedReturn": 12,
+  "portfolioSD": 15,
+  "correlation": 0,
+  "portfolioRecalibrationPercent": 4,
+  "portfolioRecalibrationAge": 55,
+
+  "superBlendedReturn": 12,
+  "superRecalibrationPercent": 5,
+  "superRecalibrationAge": 55,
+
+  "removeVolatility": false,
+  "includeFatTails": false,
+  "fatTailMagnitude": 1,
+  "fatTailFrequency": 1,
+  "fatTailSkew": 0,
+
+  "blackSwanAge": 52,
+  "blackSwanDropPct": 40,
+
+  "specialContributions": [
+    { "age": 46, "amount": 250000, "description": "Side sale" },
+    { "age": 50, "amount": 250000, "description": "Bonus" },
+    { "age": 54, "amount": 1500000, "description": "Liquidity event" }
+  ]
+}

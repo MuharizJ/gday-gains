@@ -10,18 +10,24 @@ import ExpensesTab from '../components/ExpensesTab';
 import SettingsTab from '../components/SettingsTab';
 
 import { initialValues, validationSchema } from '../formSchema';
-import { saveForm, loadForm } from '../utils/persist';
+import { loadForm } from '../utils/persist';
 import type { Inputs } from '../types';
 import PersistToLocalStorage from '../components/PersistToLocalStorage';
 
-import { MOCK_RESULTS } from '../utils/mockResults';
+// Accept either REACT_APP_API_URL (existing) or REACT_APP_API_BASE_URL.
+// Fallback to localhost for local dev.
+const rawApi =
+  process.env.REACT_APP_API_URL ??
+  process.env.REACT_APP_API_BASE_URL ??
+  'http://localhost:5001';
 
+// remove trailing slash if present
+const API = rawApi.replace(/\/+$/, '');
 
 export default function InputsPage() {
   const [tabValue, setTabValue] = useState(0);
   const [pending, setPending] = useState(false);
   const navigate = useNavigate();
-  const API = process.env.REACT_APP_API_URL ?? 'http://localhost:5001';
 
   const saved = loadForm();
   const seed: Inputs = { ...initialValues, ...(saved || {}) };
@@ -35,30 +41,56 @@ export default function InputsPage() {
         try {
           const res = await axios.post(`${API}/api/simulate`, values);
           navigate('/results', { state: { results: res.data, inputs: values } });
-        } catch {
+        } catch (err) {
+          console.error(err);
           alert('Simulation failed');
-        } finally { setPending(false); }
+        } finally {
+          setPending(false);
+        }
       }}
     >
       {() => (
         <Form>
           <PersistToLocalStorage />
 
-          <Paper elevation={0} sx={{ mb: 2, p: 1.5, borderRadius: 2, border: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 2, position: 'sticky', top: 16, zIndex: 1 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              mb: 2,
+              p: 1.5,
+              borderRadius: 2,
+              border: '1px solid #eee',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              position: 'sticky',
+              top: 16,
+              zIndex: 1,
+              background: '#fff',
+            }}
+          >
             <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ flex: 1 }}>
               <Tab label="Personal" />
               <Tab label="Portfolio" />
               <Tab label="Expenses" />
               <Tab label="Settings" />
             </Tabs>
-            <Button type="submit" disabled={pending} startIcon={pending ? <CircularProgress size={16} /> : null}>
+            <Button
+              type="submit"
+              disabled={pending}
+              startIcon={pending ? <CircularProgress size={16} /> : null}
+            >
               {pending ? 'Running…' : 'Show Me'}
             </Button>
           </Paper>
 
           <Box>{tabValue === 0 && <PersonalTab />}</Box>
           <Box>{tabValue === 1 && <PortfolioTab />}</Box>
-          <Box>{tabValue === 2 && <ExpensesTab />}</Box>
+          <Box>
+            {tabValue === 2 && (
+              <ExpensesTab />
+            )}
+          </Box>
           <Box>{tabValue === 3 && <SettingsTab />}</Box>
         </Form>
       )}

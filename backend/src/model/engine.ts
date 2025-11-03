@@ -4,11 +4,8 @@ import type {
   PolicyEvent, AdviceRow, AdviceTrack
 } from './types';
 
-/* ===== helpers ===== */
+/* ============ helpers ============ */
 const pct = (x: number) => x / 100;
-
-/** TEMP: will become a UI input later */
-const SUPER_DRAW_AGE = 63;
 
 function getAge(birthdate: string): number {
   const d = new Date(birthdate);
@@ -49,7 +46,15 @@ function percentile(sorted: number[], p: number) {
   return sorted[lo] * (1 - w) + sorted[hi] * w;
 }
 
-/* ===== one-path rows ===== */
+/* fixed z for representative paths */
+function zOf(p: number) {
+  if (Math.abs(p - 0.2) < 1e-6) return -0.841621233;
+  if (Math.abs(p - 0.5) < 1e-6) return 0;
+  if (Math.abs(p - 0.8) < 1e-6) return +0.841621233;
+  return 0;
+}
+
+/* ============ one-path rows ============ */
 type YearRow = {
   age: number;
   beginPortfolio: number; beginSuper: number;
@@ -78,28 +83,13 @@ function extraShockHaircutPct(inputs: Inputs, age: number): number {
   return extra * remainFrac;
 }
 
-/** Guardrail decision based on drawable (pre-63 portfolio only; after 63 combined). */
-function decideGuardrail(params: {
-  want: number; floor: number; drawable: number; guard: PolicyCfg;
-}): { allowed: number; policy: YearRow['policy'] } {
-  const { want, floor, drawable, guard } = params;
-  if (!guard.enabled) return { allowed: want, policy: 'normal' };
-
-  const fundedYears = Math.max(0, drawable) / Math.max(1, want);
-  if (fundedYears < guard.hardYears) {
-    return { allowed: floor, policy: 'floor' };
-  }
-  if (fundedYears < guard.softYears) {
-    const cut = Math.max(floor, want * (1 - pct(guard.cutPct)));
-    return { allowed: cut, policy: 'cut' };
-  }
-  return { allowed: want, policy: 'normal' };
-}
-
 function simulatePathCore(
   inputs: Inputs,
   opts: { rngSeed?: number; zFixed?: number; removeVol?: boolean } = {}
 ): { rows: YearRow[]; events: PolicyEvent[] } {
+
+  // Widen locally so we can read optional fields without changing types.ts
+  const ex = inputs as Inputs & { guardrail?: Guardrail; livingExpenses?: number };
 
   const startAge = getAge(inputs.birthdate);
   const endAge = Math.max(startAge, Math.round(inputs.lifeExpectancy));
@@ -107,7 +97,7 @@ function simulatePathCore(
 
   const guard: PolicyCfg = {
     ...defaultPolicy,
-    ...(inputs.guardrail ? { enabled: true, ...inputs.guardrail } : {})
+    ...(ex.guardrail ? { enabled: true, ...ex.guardrail } : {})
   };
 
   // irregulars per bucket
@@ -127,8 +117,10 @@ function simulatePathCore(
   const muSHaircut = pct(inputs.superRecalibrationPercent);
 
   const infl = pct(inputs.inflation);
-  const want0  = inputs.livingExpenses * 12;
-  const floor0 = inputs.floorWithdrawal * 12;
+
+  // If livingExpenses (monthly) isn't provided, fall back to floorWithdrawal (monthly)
+  const want0  = (ex.livingExpenses ?? inputs.floorWithdrawal) * 12; // annual baseline
+  const floor0 = inputs.floorWithdrawal * 12;                        // annual baseline
 
   const c0P = inputs.monthlyContribution * 12;
   const c0S = inputs.monthlySuperContribution * 12;
@@ -144,12 +136,8 @@ function simulatePathCore(
   const events: PolicyEvent[] = [];
 
   let shockYear = Number.POSITIVE_INFINITY;
-  const swanAge  = Math.round(inputs.blackSwanAge ?? -1);
+  const swanAge: number = inputs.blackSwanAge == null ? Number.NaN : Math.round(inputs.blackSwanAge);
   const swanDrop = pct(inputs.blackSwanDropPct || 0);
-  const superShockMul = Math.max(0, inputs.blackSwanSuperMultiplier ?? 0.6);
-
-  /** Merge happens once. */
-  let mergedSuper = false;
 
   for (let age = startAge; age <= endAge; age++) {
     const beginP = balP, beginS = balS;
@@ -169,23 +157,19 @@ function simulatePathCore(
     const cS = activeContrib ? c0S * Math.pow(1 + gS, Math.max(0, yrsFromStart)) : 0;
     balP += cP; balS += cS;
 
-    // merge super at SUPER_DRAW_AGE
-    if (!mergedSuper && age >= SUPER_DRAW_AGE) {
-      balP += balS; balS = 0; mergedSuper = true;
-    }
-
-    // black swan (before growth)
+    // shock before growth
     let swanAmt = 0;
     if (swanDrop > 0 && age === swanAge) {
-      const dropP = balP * swanDrop;
-      const dropS = balS * swanDrop * superShockMul;
-      swanAmt = dropP + dropS;
-      balP -= dropP; balS -= dropS;
+      const dropAmt = (balP + balS) * swanDrop;
+      swanAmt = dropAmt;
+      const tot = balP + balS || 1;
+      balP -= dropAmt * (balP / tot);
+      balS -= dropAmt * (balS / tot);
       shockYear = age;
       events.push({ age, type: 'black-swan' });
     }
 
-    // withdrawals (post-ret)
+    // spending / withdrawals
     let policy: YearRow['policy'] = 'normal';
     let want = 0, floor = 0, allowed = 0;
     let wP = 0, wS = 0;
@@ -195,18 +179,24 @@ function simulatePathCore(
       want  = want0  * Math.pow(1 + infl, Math.max(0, yrsFromRet));
       floor = floor0 * Math.pow(1 + infl, Math.max(0, yrsFromRet));
 
-      const drawable = balP + (mergedSuper ? balS : 0); // after merge, super is 0
-      const g = decideGuardrail({ want, floor, drawable, guard });
-      allowed = g.allowed;
-      policy  = g.policy;
+      const fundedYears = (balP + balS) / Math.max(1, want);
+      allowed = want; // default: target (desired) spend
 
-      if (policy === 'floor') events.push({ age, type: 'floor' });
-      else if (policy === 'cut') events.push({ age, type: 'cut' });
+      if (guard.enabled) {
+        if (fundedYears < guard.hardYears) {
+          allowed = floor;
+          policy = 'floor';
+          events.push({ age, type: 'floor' });
+        } else if (fundedYears < guard.softYears) {
+          allowed = Math.max(floor, want * (1 - pct(guard.cutPct)));
+          policy = 'cut';
+          events.push({ age, type: 'cut' });
+        }
+      }
 
-      let remaining = Math.max(0, Math.min(allowed, drawable));
-
+      let remaining = allowed;
       const drawP = Math.min(balP, remaining); balP -= drawP; wP = drawP; remaining -= drawP;
-      if (remaining > 0 && !mergedSuper) { const drawS = Math.min(balS, remaining); balS -= drawS; wS = drawS; remaining -= drawS; }
+      if (remaining > 0) { const drawS = Math.min(balS, remaining); balS -= drawS; wS = drawS; remaining -= drawS; }
     }
 
     // returns
@@ -223,7 +213,7 @@ function simulatePathCore(
       sd  = sd0 * (defaultRecovery.volMultiplier ?? 1.0);
     }
 
-    const z = opts.removeVol ? 0 : normal01(rng);
+    const z = opts.removeVol ? 0 : (opts.zFixed ?? normal01(rng));
     const rP = annualReturn(muP, sd, z);
     const rS = annualReturn(muS, sd, z);
 
@@ -255,23 +245,16 @@ export function simulatePath(inputs: Inputs, rngSeed?: number, removeVolOverride
   return rows;
 }
 
-/* ===== Monte Carlo with quantile-matching advice paths ===== */
+/* ============ Monte Carlo ============ */
 export function simulateMonteCarlo(inputs: Inputs, runs = 10000, seed = 1234): Results {
   const startAge = getAge(inputs.birthdate);
   const endAge   = Math.max(startAge, Math.round(inputs.lifeExpectancy));
   const ages = Array.from({ length: endAge - startAge + 1 }, (_, i) => startAge + i);
 
   const perAge: number[][] = ages.map(() => []);
-  const rng = mulberry32(seed);
-
-  // Keep a subset of realized paths so we can pick a representative for the table.
-  const sampleCap = Math.min(runs, 2048);
-  const sampleRows: YearRow[][] = [];
-
   for (let k = 0; k < runs; k++) {
-    const { rows } = simulatePathCore(inputs, { rngSeed: rng() * 1e9 });
+    const rows = simulatePath(inputs, seed + k);
     rows.forEach((row, i) => perAge[i].push(row.endPortfolio + row.endSuper));
-    if (k < sampleCap) sampleRows.push(rows);
   }
 
   const graph = ages.map((age, idx) => {
@@ -287,7 +270,7 @@ export function simulateMonteCarlo(inputs: Inputs, runs = 10000, seed = 1234): R
   const last = graph[graph.length - 1];
   const endAgeFinal = last.age;
 
-  // checkpoints (unchanged)
+  // simple checkpoint
   const lookup = new Map(graph.map(g => [g.age, g]));
   const startBal = perAge[0][0];
   const checkpoints = [inputs.retirementAge, inputs.retirementAge + 5, inputs.retirementAge + 10, endAgeFinal]
@@ -305,69 +288,37 @@ export function simulateMonteCarlo(inputs: Inputs, runs = 10000, seed = 1234): R
     };
   });
 
-  // Build quantile curves for matching
-  const curve = new Map<number, { p20: number; p50: number; p80: number }>();
-  graph.forEach(g => curve.set(g.age, { p20: g.p20, p50: g.p50, p80: g.p80 }));
+  /* --- Advice/markers per path --- */
+  const unlucky = simulatePathCore(inputs, { zFixed: zOf(0.20) }); // p20 track
+  const median  = simulatePathCore(inputs, { zFixed: zOf(0.50) }); // p50 track
+  const lucky   = simulatePathCore(inputs, { zFixed: zOf(0.80) }); // p80 track
 
-  const rmse = (rows: YearRow[], key: 'p20' | 'p50' | 'p80') => {
-    let se = 0, n = 0;
-    for (const r of rows) {
-      const q = curve.get(r.age)![key];
-      const a = Math.max(1, r.endPortfolio + r.endSuper);
-      const b = Math.max(1, q);
-      const d = Math.log(a) - Math.log(b);
-      se += d * d; n++;
-    }
-    return Math.sqrt(se / Math.max(1, n));
-  };
-
-  const pickRep = (key: 'p20' | 'p50' | 'p80') =>
-    sampleRows.reduce((best, rows) => {
-      const e = rmse(rows, key);
-      return (!best || e < best.err) ? { rows, err: e } : best;
-    }, null as null | { rows: YearRow[]; err: number })!.rows;
-
-  const unlucky = pickRep('p20');
-  const median  = pickRep('p50');
-  const lucky   = pickRep('p80');
-
-  const toAdvice = (rows: YearRow[]): AdviceRow[] =>
-    rows.map(r => {
-      // At/after merge, super is 0; before merge drawable=endPortfolio
-      const merged = r.beginSuper === 0 && r.withdrawFromSuper === 0 && r.endSuper === 0;
-      const drawableEnd = merged ? r.endPortfolio + r.endSuper : r.endPortfolio;
-      const superEnd    = merged ? 0 : r.endSuper;
-      return {
-        age: r.age,
-        policy: r.policy,
-        targetSpend: r.wantSpend,
-        actualSpend: r.withdrawFromPortfolio + r.withdrawFromSuper,
-        endBalance: r.endPortfolio + r.endSuper,
-        drawableEndBalance: drawableEnd,
-        superEndBalance: superEnd,
-      };
-    });
+  const buildAdvice = (rows: YearRow[]): AdviceRow[] =>
+    rows.map(r => ({
+      age: r.age,
+      policy: r.policy,
+      targetSpend: r.wantSpend, // yearly
+      actualSpend: r.withdrawFromPortfolio + r.withdrawFromSuper, // yearly
+      endBalance: r.endPortfolio + r.endSuper, // legacy
+      // Expose richer fields for UI
+      endPortfolio: r.endPortfolio,
+      endSuper: r.endSuper,
+      rPortfolio: r.rPortfolio,   // decimal (e.g., 0.12)
+      rSuper: r.rSuper,           // decimal
+    }));
 
   const adviceByPath: AdviceTrack = {
-    p20: toAdvice(unlucky),
-    p50: toAdvice(median),
-    p80: toAdvice(lucky),
+    p20: buildAdvice(unlucky.rows),
+    p50: buildAdvice(median.rows),
+    p80: buildAdvice(lucky.rows),
   };
-
-  // For markers on the post-ret chart, use the p20 rep path (conservative)
-  const events: PolicyEvent[] = [];
-  // Build events by re-scanning unlucky rows for policy transitions
-  for (const r of unlucky) {
-    if (r.policy === 'floor') events.push({ age: r.age, type: 'floor' });
-    else if (r.policy === 'cut') events.push({ age: r.age, type: 'cut' });
-  }
 
   return {
     graph,
     atEnd: { p20: last.p20, p50: last.p50, p80: last.p80, endAge: endAgeFinal },
     breakdown,
-    events,
-    advice: adviceByPath.p20,   // legacy (kept)
+    events: unlucky.events,        // markers from unlucky path (most conservative)
+    advice: adviceByPath.p20,      // legacy field (kept)
     adviceByPath,
   };
 }

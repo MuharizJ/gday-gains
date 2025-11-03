@@ -12,19 +12,17 @@ import type { Inputs } from '../types';
 
 type GraphPoint = { age: number; p20: number; p50: number; p80: number };
 type PolicyEvent = { age: number; type: 'black-swan' | 'cut' | 'floor' };
-
-// Matches the enriched engine payload, but remains backward-compatible (fields optional).
 type AdviceRow = {
   age: number;
   policy: 'normal' | 'cut' | 'floor';
-  targetSpend: number;      // yearly; UI shows monthly
-  actualSpend: number;      // yearly; UI shows monthly
-  endBalance: number;       // combined (portfolio + super) at end of year
-  drawableEndBalance?: number; // engine: drawable (pre-63: portfolio; at/after 63: combined)
-  superEndBalance?: number;    // engine: remaining super (0 at/after 63)
-  detail?: {
-    reason?: string;
-  };
+  targetSpend: number;   // yearly; UI shows monthly
+  actualSpend: number;   // yearly; UI shows monthly
+  endBalance: number;    // legacy
+  // NEW: richer per-row fields from backend
+  endPortfolio?: number;
+  endSuper?: number;
+  rPortfolio?: number;   // decimal, e.g. 0.12
+  rSuper?: number;       // decimal
 };
 
 type Results = {
@@ -38,6 +36,11 @@ type Results = {
 
 const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString()}`;
 const monthly = (yr: number) => yr / 12;
+const fmtPct = (d?: number) => {
+  const v = (d ?? 0) * 100;
+  const sign = v > 0 ? '+' : v < 0 ? '−' : '';
+  return `${sign}${Math.abs(v).toFixed(1)}%`;
+};
 
 function clampAge(data: GraphPoint[], a: number) {
   if (!data.length) return a;
@@ -146,23 +149,15 @@ function Section({ title, data, cardAge, idPrefix, markers = [] }: {
   );
 }
 
-function AdviceTabs({ tracks, retireAge, graph }: {
+function AdviceTabs({ tracks, retireAge }: {
   tracks?: { p20: AdviceRow[]; p50: AdviceRow[]; p80: AdviceRow[] };
   retireAge: number;
-  graph: GraphPoint[];
 }) {
   const safeTracks = tracks ?? { p20: [], p50: [], p80: [] };
   const [tab, setTab] = React.useState<'p20' | 'p50' | 'p80'>('p20');
   const rows = tab === 'p50' ? safeTracks.p50 : tab === 'p80' ? safeTracks.p80 : safeTracks.p20;
 
-  // Fallback: combined balance from graph series at age (for legacy payloads).
-  const getSeriesCombined = React.useCallback(
-    (age: number) => {
-      const pt = getAtAge(graph, age);
-      return tab === 'p20' ? pt.p20 : tab === 'p50' ? pt.p50 : pt.p80;
-    },
-    [graph, tab]
-  );
+  const SUPER_DRAW_AGE = 63;
 
   return (
     <Box sx={{ mt: 4 }}>
@@ -189,20 +184,28 @@ function AdviceTabs({ tracks, retireAge, graph }: {
                 <TableCell align="right">Drawable Portfolio</TableCell>
                 <TableCell align="right">Super Balance</TableCell>
                 <TableCell align="right">Combined Balance</TableCell>
+                <TableCell align="right">ROI (Portfolio)</TableCell>
+                <TableCell align="right">ROI (Super)</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {rows.map(r => {
                 const isRetired = r.age >= retireAge;
+
+                const drawable =
+                  r.age < SUPER_DRAW_AGE
+                    ? (r.endPortfolio ?? 0)
+                    : (r.endPortfolio ?? 0) + (r.endSuper ?? 0);
+
+                const superBal =
+                  r.age < SUPER_DRAW_AGE ? (r.endSuper ?? 0) : 0;
+
+                const combined = (r.endPortfolio ?? 0) + (r.endSuper ?? 0);
+
                 const icon =
                   r.policy === 'floor' ? <FiberManualRecordIcon sx={{ fontSize: 10, color: "#f83d04ff" , ml: 0.5 }} /> :
                   r.policy === 'cut'   ? <FiberManualRecordIcon sx={{ fontSize: 10, color: "#f8bf05ff", ml: 0.5 }} /> :
                   null;
-
-                // Use engine-provided columns when available; otherwise fall back to series.
-                const combined = (typeof r.endBalance === 'number' ? r.endBalance : getSeriesCombined(r.age));
-                const drawable = (r.drawableEndBalance ?? combined); // legacy: show combined if split unknown
-                const superBal = (r.superEndBalance ?? Math.max(0, combined - drawable));
 
                 return (
                   <TableRow key={`${tab}-${r.age}`}>
@@ -222,6 +225,8 @@ function AdviceTabs({ tracks, retireAge, graph }: {
                     <TableCell align="right">{fmtMoney(drawable)}</TableCell>
                     <TableCell align="right">{fmtMoney(superBal)}</TableCell>
                     <TableCell align="right">{fmtMoney(combined)}</TableCell>
+                    <TableCell align="right">{fmtPct(r.rPortfolio)}</TableCell>
+                    <TableCell align="right">{fmtPct(r.rSuper)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -238,16 +243,6 @@ export default function ResultsPage() {
   const { state } = useLocation() as { state?: { results?: Results; inputs?: Inputs } };
   const results = state?.results;
   const inputs  = state?.inputs;
-
-  const adviceTracks = React.useMemo((): { p20: AdviceRow[]; p50: AdviceRow[]; p80: AdviceRow[] } => {
-    if (results?.adviceByPath && results.adviceByPath.p20 && results.adviceByPath.p50 && results.adviceByPath.p80) {
-      return results.adviceByPath;
-    }
-    if (results?.advice) {
-      return { p20: results.advice, p50: results.advice, p80: results.advice };
-    }
-    return { p20: [], p50: [], p80: [] };
-  }, [results]);
 
   if (!results || !inputs || !results.graph?.length) {
     return (
@@ -270,9 +265,18 @@ export default function ResultsPage() {
   const preMarkers  = (results.events ?? []).filter(e => e.age <  retireAge);
   const postMarkers = (results.events ?? []).filter(e => e.age >= retireAge);
 
+  const adviceTracks = React.useMemo((): { p20: AdviceRow[]; p50: AdviceRow[]; p80: AdviceRow[] } => {
+    if (results?.adviceByPath && results.adviceByPath.p20 && results.adviceByPath.p50 && results.adviceByPath.p80) {
+      return results.adviceByPath;
+    }
+    if (results?.advice) {
+      return { p20: results.advice, p50: results.advice, p80: results.advice };
+    }
+    return { p20: [], p50: [], p80: [] };
+  }, [results]);
+
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
-
       <Box sx={{ mt: 1, mb:3 }}>
         <Button variant="outlined" onClick={() => nav(-1)}>Edit</Button>
       </Box>
@@ -294,7 +298,7 @@ export default function ResultsPage() {
       />
 
       <Divider sx={{ my: 4 }} />
-      <AdviceTabs tracks={adviceTracks} retireAge={retireAge} graph={results.graph} />
+      <AdviceTabs tracks={adviceTracks} retireAge={retireAge} />
 
       <Box sx={{ mt: 3 }}>
         <Button variant="outlined" onClick={() => nav(-1)}>Edit</Button>

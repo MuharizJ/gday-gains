@@ -1,76 +1,81 @@
-/* Basic shared model types for the simulator */
+// backend/src/model/types.ts
 
-export type Bucket = 'portfolio' | 'super';
-
+/* ===== Inputs ===== */
 export type SpecialContribution = {
   age: number;
   amount: number;
-  bucket?: Bucket;            // default: 'portfolio'
   description?: string;
+  bucket?: 'portfolio' | 'super';
 };
 
 export type Guardrail = {
-  /** When liquid years-of-funding falls below this, we apply a soft cut */
-  softYears: number;          // e.g., 30  => ~3.33% WR
-  /** When liquid years-of-funding falls below this, clamp to floor */
-  hardYears: number;          // e.g., 20  => ~5.00% WR
-  /** Size of the soft cut (percent of the target spend to cut) */
-  cutPct: number;             // e.g., 20
+  softYears: number;   // if fundedYears < softYears -> cut
+  hardYears: number;   // if fundedYears < hardYears -> floor
+  cutPct: number;      // % cut when in soft zone
 };
 
 export type BlackSwanRecovery = {
-  years: number;
-  muDragPct: number;          // extra expected-return drag during recovery
-  volMultiplier: number;      // extra volatility during recovery
+  years: number;         // recovery years after the shock year
+  muDragPct: number;     // additional drag on expected return
+  volMultiplier?: number;
 };
 
-export type PolicyEvent = {
-  age: number;
-  type: 'black-swan' | 'cut' | 'floor';
+export type Inputs = {
+  birthdate: string;           // yyyy-mm-dd
+  lifeExpectancy: number;
+  retirementAge: number;
+
+  portfolioBalance: number;
+  superBalance: number;
+
+  monthlyContribution: number;
+  monthlySuperContribution: number;
+  contributionGrowth: number;  // %/yr
+  superGrowth: number;         // %/yr
+
+  portfolioExpectedReturn: number; // % nominal
+  portfolioSD: number;             // % stdev
+  superBlendedReturn: number;      // % nominal blended
+
+  inflation: number;            // %/yr
+  floorWithdrawal: number;      // $/mo floor
+
+  portfolioRecalibrationPercent: number; // % haircut post-ret
+  superRecalibrationPercent: number;     // % haircut post-ret
+  portfolioRecalibrationAge: number;
+  superRecalibrationAge: number;
+
+  contributeAfterRetirement?: boolean;
+  specialContributions?: SpecialContribution[];
+
+  // Shock
+  blackSwanAge?: number;        // optional
+  blackSwanDropPct?: number;    // optional
+  shockRecoveryYears?: number;  // optional
+  shockExtraHaircutPct?: number;// optional
+
+  removeVolatility?: boolean;
 };
 
-export type AdviceDetail = {
-  /** Yearly numbers (not monthly) */
-  want: number;
-  floor: number;
-  allowed: number;
+/* ===== Results/Advice ===== */
+export type PolicyEvent = { age: number; type: 'black-swan' | 'cut' | 'floor' };
 
-  /** Split of actual spend by bucket */
-  fromPortfolio: number;
-  fromSuper: number;
-
-  /** Diagnostics */
-  fundedYears: number;      // (drawable at begin) / want
-  wrWanted: number;         // want / drawable
-  wrAllowed: number;        // allowed / drawable
-  reason: string;
-
-  /** Balances */
-  beginPortfolio: number;
-  beginSuper: number;
-  endPortfolio: number;
-  endSuper: number;
-
-  /** For table view */
-  endDrawableBalance: number; // what the customer can draw from after this year
-};
-
+/** Advice row sent to the UI table. */
 export type AdviceRow = {
   age: number;
   policy: 'normal' | 'cut' | 'floor';
-  /** Desired plan (yearly) */
+  /** desired annual spend */
   targetSpend: number;
-  /** Actual withdrawals executed (yearly) */
+  /** actual annual spend after policy */
   actualSpend: number;
-  /** Total end-of-year wealth (portfolio + super) */
+  /** legacy combined end balance (kept for compatibility) */
   endBalance: number;
 
-  /** Table balances */
-  drawableEndBalance: number; // equals endPortfolio pre-63; equals combined at/after 63
-  superEndBalance: number;    // equals endSuper pre-63; 0 at/after 63
-
-  /** Optional rich details for UI (safe to ignore) */
-  detail?: AdviceDetail;
+  /** NEW: explicit balances and the per-year returns used (decimals, e.g., 0.12) */
+  endPortfolio?: number;
+  endSuper?: number;
+  rPortfolio?: number;
+  rSuper?: number;
 };
 
 export type AdviceTrack = {
@@ -80,66 +85,12 @@ export type AdviceTrack = {
 };
 
 export type Results = {
-  graph: { age: number; p20: number; p50: number; p80: number }[];
+  graph: Array<{ age: number; p20: number; p50: number; p80: number }>;
   atEnd: { p20: number; p50: number; p80: number; endAge: number };
-  breakdown: {
-    age: number;
-    ret20: number; ret50: number; ret80: number;
-    bal20: number; bal50: number; bal80: number;
-  }[];
-  /** Markers derived from the unlucky path */
+  breakdown: Array<{ age: number; ret20: number; ret50: number; ret80: number; bal20: number; bal50: number; bal80: number }>;
   events?: PolicyEvent[];
-  /** Legacy single track (kept for backward compat) */
+  /** legacy single track kept for older clients */
   advice?: AdviceRow[];
-  /** New advice: one track per percentile */
-  adviceByPath: AdviceTrack;
-};
-
-export type Inputs = {
-  /* Person */
-  birthdate: string;
-  retirementAge: number;
-  lifeExpectancy: number;
-
-  /* Spending (monthly in UI) */
-  livingExpenses: number;         // target $/mo
-  floorWithdrawal: number;        // floor $/mo
-  inflation: number;              // %/yr
-
-  /* Portfolio (taxable) */
-  portfolioBalance: number;
-  monthlyContribution: number;
-  contributionGrowth: number;     // %/yr
-  portfolioExpectedReturn: number;// % nominal
-  portfolioSD: number;            // % stdev
-  portfolioRecalibrationPercent: number; // post-ret haircut (%)
-  portfolioRecalibrationAge: number;
-
-  /* Super (retirement account) */
-  superBalance: number;
-  monthlySuperContribution: number;
-  superGrowth: number;            // %/yr
-  superBlendedReturn: number;     // % nominal
-  superRecalibrationPercent: number; // post-ret haircut (%)
-  superRecalibrationAge: number;
-
-  /* Options */
-  contributeAfterRetirement?: boolean;
-
-  /* Guardrails */
-  guardrail?: Guardrail;
-
-  /* Black swan */
-  blackSwanAge?: number;
-  blackSwanDropPct?: number;        // portfolio drop %
-  /** Multiplier to scale the shock applied to super vs portfolio (default 0.6). */
-  blackSwanSuperMultiplier?: number;
-  shockRecoveryYears?: number;      // extra years for alpha haircut after the shock
-  shockExtraHaircutPct?: number;    // extra haircut that decays to 0 across shockRecoveryYears
-
-  /* Special cash-in events */
-  specialContributions?: SpecialContribution[];
-
-  /* Simulation switches */
-  removeVolatility?: boolean;
+  /** preferred structure: three tracks for unlucky/median/lucky */
+  adviceByPath?: AdviceTrack;
 };

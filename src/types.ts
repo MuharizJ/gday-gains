@@ -1,3 +1,4 @@
+// << frontend >> src/types.ts
 export type SpecialRow = { age: number; amount: number; description?: string };
 
 export type Inputs = {

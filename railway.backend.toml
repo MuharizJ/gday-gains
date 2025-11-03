@@ -1,0 +1,16 @@
+# /railway.backend.toml
+# Build & run the Node/TS backend living in /backend
+
+[build]
+# Railpack is default, but we declare it explicitly for clarity.
+builder = "RAILPACK"
+# Install and build *inside* the backend folder
+buildCommand = "npm --prefix backend ci && npm --prefix backend run build"
+
+[deploy]
+# Start the compiled server from /backend
+startCommand = "npm --prefix backend run start"
+# Optional: if you added a health endpoint, set it here (else just "/")
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "ALWAYS"

@@ -1,0 +1,13 @@
+# /railway.frontend.toml
+# Build CRA at repo root and serve the static build
+
+[build]
+builder = "RAILPACK"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+# 'serve' keeps a single process alive serving the built SPA on Railway's $PORT
+startCommand = "npx serve -s build -l ${PORT}"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "ALWAYS"

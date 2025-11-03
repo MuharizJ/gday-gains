@@ -3,7 +3,9 @@
     "test:engine": "tsx src/scripts/runTests.ts",
     "dev": "tsx watch src/index.ts",
     "scenario:det": "tsx src/scripts/runScenario.ts src/scenarios/sample.json",
-    "scenario:mc": "node -e \"console.log('Use scenario:det for table; MC runs via API or runScenario.ts already prints end percentiles.')\""
+    "scenario:mc": "node -e \"console.log('Use scenario:det for table; MC runs via API or runScenario.ts already prints end percentiles.')\"",
+    "build": "tsc",
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "compression": "^1.8.1",

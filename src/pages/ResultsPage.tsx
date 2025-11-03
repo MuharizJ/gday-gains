@@ -244,6 +244,16 @@ export default function ResultsPage() {
   const results = state?.results;
   const inputs  = state?.inputs;
 
+  const adviceTracks = React.useMemo((): { p20: AdviceRow[]; p50: AdviceRow[]; p80: AdviceRow[] } => {
+    if (results?.adviceByPath && results.adviceByPath.p20 && results.adviceByPath.p50 && results.adviceByPath.p80) {
+      return results.adviceByPath;
+    }
+    if (results?.advice) {
+      return { p20: results.advice, p50: results.advice, p80: results.advice };
+    }
+    return { p20: [], p50: [], p80: [] };
+  }, [results]);
+
   if (!results || !inputs || !results.graph?.length) {
     return (
       <Box p={3}>
@@ -255,6 +265,7 @@ export default function ResultsPage() {
     );
   }
 
+  // Safe to access results/inputs below
   const startAge = results.graph[0].age;
   const retireAge = Math.max(startAge, Math.round(inputs.retirementAge));
   const lifeAge   = Math.max(retireAge, Math.round(inputs.lifeExpectancy));
@@ -264,16 +275,6 @@ export default function ResultsPage() {
 
   const preMarkers  = (results.events ?? []).filter(e => e.age <  retireAge);
   const postMarkers = (results.events ?? []).filter(e => e.age >= retireAge);
-
-  const adviceTracks = React.useMemo((): { p20: AdviceRow[]; p50: AdviceRow[]; p80: AdviceRow[] } => {
-    if (results?.adviceByPath && results.adviceByPath.p20 && results.adviceByPath.p50 && results.adviceByPath.p80) {
-      return results.adviceByPath;
-    }
-    if (results?.advice) {
-      return { p20: results.advice, p50: results.advice, p80: results.advice };
-    }
-    return { p20: [], p50: [], p80: [] };
-  }, [results]);
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>

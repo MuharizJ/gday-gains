@@ -27,7 +27,8 @@
     "recharts": "^3.3.0",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4",
-    "yup": "^1.7.1"
+    "yup": "^1.7.1",
+    "zod": "^3.25.76"
   },
   "scripts": {
     "start": "react-scripts start",

@@ -33,7 +33,6 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
     "eject": "react-scripts eject",
     "start:client": "npm start",
     "start:server": "cd backend && npm run dev",

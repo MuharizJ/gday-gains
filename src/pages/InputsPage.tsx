@@ -15,19 +15,23 @@ import type { Inputs } from '../types';
 import PersistToLocalStorage from '../components/PersistToLocalStorage';
 
 /**
- * API base resolution strategy:
- * - Prefer REACT_APP_API_URL or REACT_APP_API_BASE_URL (set in Railway frontend env)
- * - In dev, fall back to http://localhost:5001
- * - In production, also allow a same-origin fallback (window.location.origin)
- *   so we can later front a reverse-proxy that routes /api to the backend.
+ * Resolve API base:
+ * - REACT_APP_API_URL or REACT_APP_API_BASE_URL if set (preferred in prod)
+ * - Dev fallback: http://localhost:5001
+ * - Prod fallback: same-origin (window.location.origin)
+ * Also: if someone forgets the protocol (e.g. "my-api.up.railway.app"), add https://
  */
+function normalizeBase(raw: string) {
+  const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withProto.replace(/\/+$/, '');
+}
+
 const envApi =
   process.env.REACT_APP_API_URL ??
   process.env.REACT_APP_API_BASE_URL ??
   (process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : window.location.origin);
 
-// normalize (no trailing slash)
-const API_BASE = envApi.replace(/\/+$/, '');
+const API_BASE = normalizeBase(envApi);
 
 export default function InputsPage() {
   const [tabValue, setTabValue] = useState(0);
@@ -48,8 +52,6 @@ export default function InputsPage() {
           const res = await axios.post(url, values, { withCredentials: false });
           navigate('/results', { state: { results: res.data, inputs: values } });
         } catch (err) {
-          // This log helps when you remote-debug the phone
-          // (Chrome devtools "Inspect device" / Safari Web Inspector)
           // eslint-disable-next-line no-console
           console.error('simulate failed', err);
           alert('Simulation failed');

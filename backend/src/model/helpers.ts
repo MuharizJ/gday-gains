@@ -1,5 +1,5 @@
 // backend/src/model/helpers.ts
-import type { Inputs } from './types';
+// Utility helpers used by the engine (dates, RNG, distributions, clamps, coercion)
 
 export const pct = (x: number) => x / 100;
 
@@ -27,6 +27,7 @@ export function parseBirthdate(s: string): Date {
   return new Date(isNaN(t) ? NaN : t);
 }
 
+/** Get age (years) using UTC to avoid timezone drift across devices. */
 export function getAge(birthdate: string): number {
   const dob = parseBirthdate(birthdate);
   if (isNaN(dob.getTime())) {
@@ -94,8 +95,20 @@ export type ScenarioBand = keyof typeof ROI_CLAMPS;
 export const clamp = (x: number, min: number, max: number) =>
   Math.max(min, Math.min(max, x));
 
-/** Clamp a raw ROI according to scenario; falls back to global clamp */
+/** Clamp a raw ROI according to scenario; also enforce the global hard bounds. */
 export function clampROI(raw: number, scenario?: ScenarioBand) {
   const band = scenario ? ROI_CLAMPS[scenario] : ROI_CLAMPS.global;
-  return clamp(raw, band.min, band.max);
+  const first = clamp(raw, band.min, band.max);
+  return clamp(first, ROI_CLAMPS.global.min, ROI_CLAMPS.global.max);
+}
+
+/** Coerce number-like strings (e.g., "1 500 000", "10,000") into numbers. */
+export function safeNum(n: unknown): number {
+  if (typeof n === 'number') return isFinite(n) ? n : 0;
+  if (typeof n === 'string') {
+    const s = n.replace(/[\s\u00A0,_$A-Za-z]/g, '');
+    const v = Number(s);
+    return isNaN(v) ? 0 : v;
+  }
+  return 0;
 }

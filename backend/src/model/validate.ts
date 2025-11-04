@@ -1,51 +1,68 @@
 // backend/src/model/validate.ts
 import { z } from 'zod';
 import type { Inputs } from './types';
+import { parseBirthdate, safeNum } from './helpers';
 
-const num = z.coerce.number();
-const str = z.string();
+// Coercers that tolerate mobile formatting (spaces/commas/currency)
+const num = () => z.preprocess(safeNum, z.number().finite());
+const int = () => z.preprocess(safeNum, z.number().int());
 
 export const InputsSchema = z.object({
-  firstName: str.default(''),
-  birthdate: str,                          // yyyy-mm-dd
+  firstName: z.string().default(''),
+
+  // Validate birthdate is parseable by our UTC parser
+  birthdate: z.string().refine(s => !isNaN(parseBirthdate(s).getTime()), 'Invalid birthdate'),
+
   retired: z.enum(['retired','notRetired']).default('notRetired'),
-  retirementAge: num,
-  lifeExpectancy: num,
+  retirementAge: int(),
+  lifeExpectancy: int(),
 
-  portfolioBalance: num,
-  stocksPct: num, fundsPct: num,
-  monthlyContribution: num,
-  contributionGrowth: num,
+  // Balances & contributions
+  portfolioBalance: num(),
+  stocksPct: num(),
+  fundsPct: num(),
+  monthlyContribution: num(),
+  contributionGrowth: num(),
 
-  superBalance: num,
-  monthlySuperContribution: num,
-  superGrowth: num,
+  superBalance: num(),
+  monthlySuperContribution: num(),
+  superGrowth: num(),
 
-  livingExpenses: num,
-  inflation: num,
-  floorWithdrawal: num,
+  // Expenses / inflation
+  livingExpenses: num(),
+  inflation: num(),
+  floorWithdrawal: num(),
 
-  portfolioExpectedReturn: num,
-  portfolioSD: num,
-  correlation: num,
-  portfolioRecalibrationPercent: num,
-  portfolioRecalibrationAge: num,
+  // Portfolio assumptions
+  portfolioExpectedReturn: num(),
+  portfolioSD: num(),
+  correlation: num(),
+  portfolioRecalibrationPercent: num(),
+  portfolioRecalibrationAge: int(),
 
-  superBlendedReturn: num,
-  superRecalibrationPercent: num,
-  superRecalibrationAge: num,
+  // Super assumptions
+  superBlendedReturn: num(),
+  superRecalibrationPercent: num(),
+  superRecalibrationAge: int(),
 
+  // Volatility features
   removeVolatility: z.coerce.boolean().default(false),
-  includeFatTails: z.coerce.boolean().default(false), fatTailMagnitude: num, fatTailFrequency: num, fatTailSkew: num,
+  includeFatTails: z.coerce.boolean().default(false),
+  fatTailMagnitude: num(),
+  fatTailFrequency: num(),
+  fatTailSkew: num(),
 
-  blackSwanAge: num,
-  blackSwanDropPct: num,
+  // Black swan (coerced; default to 0 if blank)
+  blackSwanAge: int().default(0),
+  blackSwanDropPct: num().default(0),
 
+  // Irregular contributions
   specialContributions: z.array(
     z.object({
-      age: num,
-      amount: num,
-      description: z.string().optional()
+      age: int(),
+      amount: num(),
+      description: z.string().optional(),
+      // optional: bucket: z.enum(['portfolio','super']).optional()
     })
   ).default([]),
 });

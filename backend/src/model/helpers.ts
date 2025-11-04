@@ -3,12 +3,41 @@ import type { Inputs } from './types';
 
 export const pct = (x: number) => x / 100;
 
+/** Parse ISO (YYYY-MM-DD) and D/M/Y (or D-M-Y) into a UTC date. */
+export function parseBirthdate(s: string): Date {
+  if (!s) return new Date(NaN);
+
+  // ISO: 1981-08-18
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/;
+  const mIso = s.match(iso);
+  if (mIso) {
+    const y = +mIso[1], m = +mIso[2], d = +mIso[3];
+    return new Date(Date.UTC(y, m - 1, d));
+  }
+
+  // D/M/Y or D-M-Y
+  const dmy = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/;
+  const mDmy = s.match(dmy);
+  if (mDmy) {
+    const d = +mDmy[1], m = +mDmy[2], y = +mDmy[3];
+    return new Date(Date.UTC(y, m - 1, d));
+  }
+
+  const t = Date.parse(s);
+  return new Date(isNaN(t) ? NaN : t);
+}
+
 export function getAge(birthdate: string): number {
-  const d = new Date(birthdate);
-  const today = new Date();
-  let age = today.getFullYear() - d.getFullYear();
-  const m = today.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+  const dob = parseBirthdate(birthdate);
+  if (isNaN(dob.getTime())) {
+    throw new Error(`Invalid birthdate: "${birthdate}"`);
+  }
+  const now = new Date();
+  const yNow = now.getUTCFullYear(), mNow = now.getUTCMonth(), dNow = now.getUTCDate();
+  const yDob = dob.getUTCFullYear(), mDob = dob.getUTCMonth(), dDob = dob.getUTCDate();
+
+  let age = yNow - yDob;
+  if (mNow < mDob || (mNow === mDob && dNow < dDob)) age--;
   return age;
 }
 

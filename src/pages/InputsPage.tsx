@@ -14,15 +14,20 @@ import { loadForm } from '../utils/persist';
 import type { Inputs } from '../types';
 import PersistToLocalStorage from '../components/PersistToLocalStorage';
 
-// Accept either REACT_APP_API_URL (existing) or REACT_APP_API_BASE_URL.
-// Fallback to localhost for local dev.
-const rawApi =
+/**
+ * API base resolution strategy:
+ * - Prefer REACT_APP_API_URL or REACT_APP_API_BASE_URL (set in Railway frontend env)
+ * - In dev, fall back to http://localhost:5001
+ * - In production, also allow a same-origin fallback (window.location.origin)
+ *   so we can later front a reverse-proxy that routes /api to the backend.
+ */
+const envApi =
   process.env.REACT_APP_API_URL ??
   process.env.REACT_APP_API_BASE_URL ??
-  'http://localhost:5001';
+  (process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : window.location.origin);
 
-// remove trailing slash if present
-const API = rawApi.replace(/\/+$/, '');
+// normalize (no trailing slash)
+const API_BASE = envApi.replace(/\/+$/, '');
 
 export default function InputsPage() {
   const [tabValue, setTabValue] = useState(0);
@@ -39,10 +44,14 @@ export default function InputsPage() {
       onSubmit={async (values) => {
         setPending(true);
         try {
-          const res = await axios.post(`${API}/api/simulate`, values);
+          const url = `${API_BASE}/api/simulate`;
+          const res = await axios.post(url, values, { withCredentials: false });
           navigate('/results', { state: { results: res.data, inputs: values } });
         } catch (err) {
-          console.error(err);
+          // This log helps when you remote-debug the phone
+          // (Chrome devtools "Inspect device" / Safari Web Inspector)
+          // eslint-disable-next-line no-console
+          console.error('simulate failed', err);
           alert('Simulation failed');
         } finally {
           setPending(false);
@@ -86,11 +95,7 @@ export default function InputsPage() {
 
           <Box>{tabValue === 0 && <PersonalTab />}</Box>
           <Box>{tabValue === 1 && <PortfolioTab />}</Box>
-          <Box>
-            {tabValue === 2 && (
-              <ExpensesTab />
-            )}
-          </Box>
+          <Box>{tabValue === 2 && <ExpensesTab />}</Box>
           <Box>{tabValue === 3 && <SettingsTab />}</Box>
         </Form>
       )}

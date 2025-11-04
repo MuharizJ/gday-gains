@@ -7,13 +7,15 @@ import simulateRouter from './routes/simulate';
 
 const app = express();
 
-// Render/Vercel sit behind a proxy; needed for correct IPs & some middleware.
+// Some platforms sit behind a proxy; needed for correct IPs & some middleware.
 app.set('trust proxy', 1);
 
-/** CORS: read a comma-separated whitelist from CORS_ORIGIN.
- *  Examples:
- *  CORS_ORIGIN=https://your-frontend.vercel.app,http://localhost:5173
- *  If not set, allow all (useful for local dev). */
+/**
+ * CORS:
+ *  - Read a comma-separated whitelist from CORS_ORIGIN.
+ *  - If not set, allow all (useful for local dev).
+ *  - Add Vary: Origin so caches behave.
+ */
 const origins = (process.env.CORS_ORIGIN ?? '')
   .split(',')
   .map(s => s.trim())
@@ -24,6 +26,11 @@ app.use(cors({
   credentials: true,
 }));
 
+app.use((req, res, next) => {
+  res.header('Vary', 'Origin');
+  next();
+});
+
 // Security headers (kept permissive for SPA/API assets crossing origins).
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -32,14 +39,15 @@ app.use(helmet({
 // Gzip responses
 app.use(compression());
 
-// Request logging (pretty in dev, standard in prod)
+// Request logging
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // JSON parsing
 app.use(express.json({ limit: '1mb' }));
 
-// Simple health check for uptime monitors
+// Health checks
 app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+app.get('/api/ping', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
 // API routes
 app.use('/api', simulateRouter);
@@ -48,6 +56,7 @@ app.use('/api', simulateRouter);
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
 // Error handler
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
